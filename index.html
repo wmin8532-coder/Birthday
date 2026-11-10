@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <!-- スマホで画面が崩れないための必須設定 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>For You 🤍</title>
+    <style>
+        :root {
+            --bg-color: #0d0614;
+            --neon-pink: #ff5e97;
+            --neon-glow: rgba(255, 94, 151, 0.6);
+            --text-main: #fff0f5;
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --border-glow: rgba(255, 94, 151, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #23112c 0%, #08030d 100%);
+            color: var(--text-main);
+            font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Sans-Serif";
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow-x: hidden;
+            padding: 70px 15px 40px 15px;
+        }
+
+        /* 背景の動くハート（🩷）用キャンバス */
+        #effectCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* 上部ナビゲーションバー */
+        .nav-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(13, 6, 20, 0.9);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 94, 151, 0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 10px;
+            z-index: 100;
+        }
+        .nav-logo {
+            position: absolute;
+            left: 15px;
+            font-size: 1.1rem;
+            font-style: italic;
+            color: var(--neon-pink);
+            text-shadow: 0 0 10px var(--neon-glow);
+            display: none;
+        }
+        .nav-link {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            padding: 5px 8px;
+            position: relative;
+        }
+        .nav-link:hover, .nav-link.active-nav {
+            color: var(--text-main);
+            text-shadow: 0 0 10px var(--neon-glow);
+        }
+        .nav-link.active-nav::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 10%;
+            width: 80%;
+            height: 2px;
+            background: var(--neon-pink);
+            box-shadow: 0 0 8px var(--neon-pink);
+        }
+
+        /* 右上の設定メニュー */
+        .menu-container {
+            position: fixed;
+            top: 10px;
+            right: 15px;
+            z-index: 101;
+        }
+        .menu-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 94, 151, 0.3);
+            color: var(--text-main);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .settings-panel {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 0;
+            background: rgba(20, 10, 30, 0.98);
+            border: 1px solid var(--neon-pink);
+            padding: 12px;
+            border-radius: 10px;
+            width: 200px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
+        .settings-panel.open { display: block; }
+        .settings-panel label { font-size: 0.75rem; color: var(--neon-pink); display: block; margin-bottom: 5px; }
+        .settings-panel input { width: 100%; padding: 5px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,94,151,0.4); color: #fff; border-radius: 6px; font-size: 0.85rem; }
+
+        /* 全体コンテナ */
+        .wrapper {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: calc(100vh - 120px);
+        }
+
+        .section {
+            display: none;
+            width: 100%;
+            animation: fadeIn 0.8s ease forwards;
+            text-align: center;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .section.active { display: flex; }
+
+        /* タイトル */
+        h1.title {
+            font-size: 2.6rem;
+            font-weight: 300;
+            letter-spacing: 1px;
+            color: #fff;
+            text-shadow: 0 0 10px #fff, 0 0 20px var(--neon-pink);
+            margin-bottom: 15px;
+            line-height: 1.3;
+        }
+        .sub-text {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 25px;
+        }
+
+        /* ボタン */
+        .btn {
+            background: transparent;
+            border: 1px solid var(--neon-pink);
+            color: #fff;
+            padding: 10px 30px;
+            font-size: 0.85rem;
+            border-radius: 50px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(255, 94, 151, 0.2);
+            margin-top: 20px;
+        }
+        .btn:active {
+            background: var(--neon-pink);
+        }
+
+        /* ハートネオン */
+        .heart-neon {
+            font-size: 4rem;
+            color: var(--neon-pink);
+            text-shadow: 0 0 20px var(--neon-pink);
+            animation: pulse 2s infinite alternate;
+            margin-bottom: 15px;
+        }
+
+        /* カウントダウン */
+        .countdown-container { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 25px; 
+            justify-content: center; 
+            width: 100%;
+            max-width: 400px;
+        }
+        .time-box { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-glow); 
+            padding: 12px 8px; 
+            border-radius: 12px; 
+            flex: 1; 
+            backdrop-filter: blur(5px); 
+        }
+        .time-number { font-size: 2rem; font-weight: bold; color: #fff; display: block; }
+        .time-label { font-size: 0.65rem; color: var(--neon-pink); display: block; margin-top: 4px; text-transform: uppercase; }
+
+        /* ケーキ画面 */
+        .cake-box { font-size: 6rem; cursor: pointer; filter: drop-shadow(0 0 20px var(--neon-pink)); transition: transform 0.3s; }
+        .cake-message { font-size: 1.8rem; color: #fff; text-shadow: 0 0 15px var(--neon-pink); margin-top: 20px; opacity: 0; transition: opacity 0.8s; }
+        .cake-message.show { opacity: 1; }
+
+        /* 封筒＆手紙 */
+        .surprise-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            min-height: 380px;
+            margin-top: 10px;
+        }
+        .envelope-wrapper {
+            position: relative;
+            width: 320px;
+            height: 200px;
+            cursor: pointer;
+            transition: transform 0.4s ease;
+        }
+        .envelope-flap {
+            position: absolute;
+            top: 0; left: 0; width: 0; height: 0;
+            border-left: 160px solid transparent;
+            border-right: 160px solid transparent;
+            border-top: 110px solid #422353;
+            transform-origin: top;
+            transition: transform 0.4s ease 0.2s, z-index 0s ease 0.4s;
+            z-index: 4;
+        }
+        .envelope-front {
+            position: absolute;
+            bottom: 0; left: 0; width: 0; height: 0;
+            border-left: 160px solid #361c46;
+            border-right: 160px solid #361c46;
+            border-bottom: 90px solid #251330;
+            border-radius: 0 0 10px 10px;
+            z-index: 3;
+        }
+        .letter-paper {
+            position: absolute;
+            bottom: 10px; left: 15px;
+            width: 290px;
+            background: #fffcf7;
+            color: #33222b;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            text-align: left;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 2;
+            max-height: 260px;
+            overflow-y: auto;
+            opacity: 0;
+        }
+        .envelope-wrapper.open .envelope-flap {
+            transform: rotateX(180deg);
+            z-index: 1;
+        }
+        .envelope-wrapper.open .letter-paper {
+            transform: translateY(-150px);
+            z-index: 5;
+            opacity: 1;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.8);
+        }
+
+        /* アップロード＆ギャラリー */
+        .upload-zone {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px dashed rgba(255, 94, 151, 0.4);
+            padding: 18px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 400px;
+            cursor: pointer;
+        }
+        .upload-zone p { font-size: 0.8rem; color: rgba(255,255,255,0.7); }
+        #fileInput { display: none; }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            max-height: 50vh;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        .polaroid-box {
+            position: relative;
+            background: white;
+            padding: 8px 8px 25px 8px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            transform: rotate(var(--r, 0deg));
+        }
+        .polaroid-box img { width: 100%; height: 130px; object-fit: cover; display: block; }
+        
+        .delete-pic-btn {
+            position: absolute;
+            top: -8px; right: -8px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 11;
+        }
+
+        /* 動画 */
+        .video-container { width: 100%; max-width: 500px; border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 0 20px rgba(255, 94, 151, 0.2); }
+        video { width: 100%; display: block; }
+
+        /* フッター */
+        .footer-text {
+            position: fixed;
+            bottom: 8px;
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 0.5px;
+            z-index: 10;
+            width: 100%;
+            text-align: center;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { from { transform: scale(1); text-shadow: 0 0 15px var(--neon-pink); } to { transform: scale(1.05); text-shadow: 0 0 25px var(--neon-pink); } }
+
+        @media (min-width: 768px) {
+            .nav-logo { display: block; }
+            .nav-bar { gap: 30px; padding: 15px 0; }
+            .nav-link { font-size: 0.95rem; }
+            .envelope-wrapper { width: 440px; height: 260px; }
+            .envelope-flap { border-left-width: 220px; border-right-width: 220px; border-top-width: 140px; }
+            .envelope-front { border-left-width: 220px; border-right-width: 220px; border-bottom-width: 140px; }
+            .letter-paper { width: 400px; font-size: 0.95rem; }
+            .envelope-wrapper.open .letter-paper { transform: translateY(-200px); }
+            .gallery-grid { grid-template-columns: repeat(3, 1fr); gap: 25px; }
+            .polaroid-box img { height: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 背景の動くピンクのハート用 -->
+    <canvas id="effectCanvas"></canvas>
+
+    <!-- ナビゲーションバー -->
+    <nav class="nav-bar">
+        <div class="nav-logo">For You ♥</div>
+        <button class="nav-link active-nav" id="nav-Home" onclick="jumpToSection('Home')">Home</button>
+        <button class="nav-link" id="nav-Memories" onclick="jumpToSection('Memories')">Memories</button>
+        <button class="nav-link" id="nav-Gallery" onclick="jumpToSection('Gallery')">Gallery</button>
+    </nav>
+
+    <!-- 右上設定 -->
+    <div class="menu-container">
+        <button class="menu-btn" onclick="toggleSettings()">⚙</button>
+        <div class="settings-panel" id="settingsPanel">
+            <label for="birthdayInput">誕生日を変更する</label>
+            <input type="datetime-local" id="birthdayInput" onchange="changeBirthday(this.value)">
+        </div>
+    </div>
+
+    <div class="wrapper">
+
+        <!-- HOME：カウントダウン -->
+        <div id="sectionHome" class="section active">
+            <div class="heart-neon">♥</div>
+            <h1 class="title">Happy Birthdayပါ<br>မမရေ</h1>
+            <p class="sub-text">အရမ်းချစ်ရတဲ့မမဆီသို့ 🤍</p>
+            <div class="countdown-container">
+                <div class="time-box"><span class="time-number" id="days">00</span><span class="time-label">Days</span></div>
+                <div class="time-box"><span class="time-number" id="hours">00</span><span class="time-label">Hours</span></div>
+                <div class="time-box"><span class="time-number" id="minutes">00</span><span class="time-label">Min</span></div>
+                <div class="time-box"><span class="time-number" id="seconds">00</span><span class="time-label">Sec</span></div>
+            </div>
+            <button class="btn" onclick="nextStep('Cake')">ဝင်ရောက်မည် ➔</button>
+        </div>
+
+        <!-- ケーキ画面 -->
+        <div id="sectionCake" class="section">
+            <p class="sub-text">ကိတ်မုန့်လေးကိုနှိပ်ပြီး ဆုတောင်းနော် 🎂</p>
+            <div class="cake-box" id="cakeEmoji" onclick="blowCandle()">🎂</div>
+            <div class="cake-message" id="cakeMsg">✨ Happy Birthday !! ✨</div>
+            <button class="btn" id="toGiftBtn" style="display:none;" onclick="nextStep('Envelope')">စာအိတ်ကိုဖွင့်ပါ ➔</button>
+        </div>
+
+        <!-- LETTER（サプライズ封筒画面） -->
+        <div id="sectionEnvelope" class="section">
+            <h1 class="title" style="font-size: 2rem;">Surprise for You</h1>
+            <p class="sub-text">စာအိတ်လေးကိုနှိပ်ပြီး အထဲကစာကိုသေချာဖတ်ကြည့်နော်！</p>
+            
+            <div class="surprise-container">
+                <div class="envelope-wrapper" id="envelope" onclick="toggleLetter()">
+                    <div class="envelope-flap"></div>
+                    <div class="letter-paper" id="letterPaper">
+                        <b style="color: var(--neon-pink); display:block; margin-bottom:6px; font-size:0.9rem;">Happy Birthday ပါ မမရေ့, ♥</b>
+                        မွေးနေ့မှာပျော်ရွှင်ပါစေနော်<br>
+                        မမဖြစ်ချင်တာတွေ အမြန်ဆုံးဖြစ်ပါစေနော်<br>
+                        မောင့်ကိုလည်း ဒီ့ထက်မက အများကြီး ပိုချစ်ပေးပိုဆိုးပေးနိုင်ပါ စေနော်🤪<br>
+                        ဒီနှစ်တော့ မွေးနေ့ကိတ်နဲ့လက်ဆောင် ကြီး"မား"လုပ်မပေးနိုင်ခဲ့ဘူး <br>
+                        မမစားချင်တာလေးပဲ ဝယ်ပေးလိုက်တယ်နော်<br>
+                        မမမွေးနေ့မှာ ဘာမှလုပ်မပေးရရင် မောင်စိတ်မကောင်းလို့ပါ<br>
+                        အများကြီးချစ်တယ်နော် မမ အာဘွား😘😘😘<br>
+                        <span style="display:block; text-align:right; margin-top:10px; font-style:italic;">မောင့်ဆီမှ ♥</span>
+                    </div>
+                    <div class="envelope-front"></div>
+                </div>
+            </div>
+
+            <button class="btn" id="toMemoriesBtn" style="display:none;" onclick="jumpToSection('Memories')">အမှတ်တရများဆီသို့ ➔</button>
+        </div>
+
+        <!-- MEMORIES画面 -->
+        <div id="sectionMemories" class="section">
+            <h1 class="title" style="font-size: 2rem;">မောင်တို့အမှတ်တရများ</h1>
+            <p class="sub-text">二人でつむいできた思い出たち ✨</p>
+            <div class="gallery-grid" id="memoriesGrid"></div>
+            <button class="btn" onclick="jumpToSection('Gallery')">ပုံထည့်ပါ ➔</button>
+        </div>
+
+        <!-- GALLERY画面 -->
+        <div id="sectionGallery" class="section">
+            <h1 class="title" style="font-size: 2rem;">ပုံထည့်ပါ</h1>
+            <p class="sub-text">အောက်က ခလုတ်လေးကို နှိပ်ပြီး ပုံထည့်လို့ရတယ်နော် 📸</p>
+            
+            <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+                <p>＋ ပုံထပ်ထည့်မည်</p>
+                <input type="file" id="fileInput" accept="image/*" onchange="handleImageUpload(event)">
+            </div>
+
+            <div class="gallery-grid" id="galleryGrid"></div>
+            <button class="btn" onclick="nextStep('Video')">Videoကြည့်ပါ ➔</button>
+        </div>
+
+        <!-- 動画再生画面 -->
+        <div id="sectionVideo" class="section">
+            <h1 class="title" style="font-size: 2rem;">ရန်ကုန်တုန်းက ပုံလေးတွေ သဘောကျလို့🥰</h1>
+            <div class="video-scroll-container">
+                <div class="video-item"><video controls><source src="video.mp4" type="video/mp4"></video></div>
+                <div class="video-item"><video controls><source src="video2.mp4" type="video/mp4"></video></div>
+                <div class="video-item"><video controls><source src="video3.mp4" type="video/mp4"></video></div>
+                <div class="video-item"><video controls><source src="video4.mp4" type="video/mp4"></video></div>
+                <div class="video-item"><video controls><source src="video5.mp4" type="video/mp4"></video></div>
+                <div class="video-item"><video controls><source src="video6.mp4" type="video/mp4"></video></div>
+            </div>
+            <button class="btn" onclick="jumpToSection('Home')">ပြန်သွားမည် ↺</button>
+        </div>
+
+    </div>
+
+    <div class="footer-text">ဒီဝက်ဘ်စိုက်ဟာမမအတွက်သီးသန့်လုပ်ထားတာပါ</div>
+
+    <script>
+        function toggleSettings() { document.getElementById('settingsPanel').classList.toggle('open'); }
+
+        function updateNavStyle(currentGroup) {
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active-nav'));
+            const activeLink = document.getElementById('nav-' + currentGroup);
+            if(activeLink) activeLink.classList.add('active-nav');
+        }
+
+        function nextStep(sectionId) {
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            const target = document.getElementById('section' + sectionId);
+            if(target) target.classList.add('active');
+
+            if(sectionId === 'Home' || sectionId === 'Cake') updateNavStyle('Home');
+            if(sectionId === 'Envelope' || sectionId === 'Memories') updateNavStyle('Memories');
+            if(sectionId === 'Gallery') updateNavStyle('Gallery');
+
+            const video = document.getElementById('myVideo');
+            if(sectionId === 'Video') { video.currentTime = 0; } else { video.pause(); }
+        }
+
+        function jumpToSection(groupName) {
+            if(groupName === 'Home') nextStep('Home');
+            if(groupName === 'Memories') nextStep('Memories');
+            if(groupName === 'Gallery') nextStep('Gallery');
+        }
+
+        function blowCandle() {
+            document.getElementById('cakeEmoji').innerText = "🍰✨";
+            document.getElementById('cakeMsg').classList.add('show');
+            setTimeout(() => { document.getElementById('toGiftBtn').style.display = "inline-block"; }, 500);
+        }
+
+        function toggleLetter() {
+            const env = document.getElementById('envelope');
+            env.classList.toggle('open');
+            
+            if(env.classList.contains('open')) {
+                setTimeout(() => { document.getElementById('toMemoriesBtn').style.display = "inline-block"; }, 800);
+            }
+        }
+
+        // --- 最初に用意されている写真 (photo1.jpg 〜 photo5.jpg) ---
+        let defaultImages = [
+            'photo1.jpg',
+            'photo2.jpg',
+            'photo3.jpg',
+            'photo4.jpg',
+            'photo5.jpg',
+            'photo6.jpg'
+        ];
+
+        let userImages = JSON.parse(localStorage.getItem('birthday_gallery_pics')) || [];
+        let allImages = [...defaultImages, ...userImages];
+
+        function displayImages() {
+            const galleryGrid = document.getElementById('galleryGrid');
+            const memoriesGrid = document.getElementById('memoriesGrid');
+            
+            galleryGrid.innerHTML = '';
+            memoriesGrid.innerHTML = '';
+            
+            allImages.forEach((imgSrc, index) => {
+                const randomRotate = (Math.random() * 6 - 3).toFixed(1);
+
+                // Gallery画面（追加した写真のみ削除ボタンを表示）
+                const boxG = document.createElement('div');
+                boxG.className = 'polaroid-box';
+                boxG.style.setProperty('--r', randomRotate + 'deg');
+                
+                let deleteButtonHTML = '';
+                if (index >= defaultImages.length) {
+                    const userIndex = index - defaultImages.length;
+                    deleteButtonHTML = `<button class="delete-pic-btn" onclick="deleteImage(${userIndex}); event.stopPropagation();">×</button>`;
+                }
+
+                boxG.innerHTML = `
+                    ${deleteButtonHTML}
+                    <img src="${imgSrc}" alt="Memory" onerror="this.src='https://via.placeholder.com/150?text=Photo+Not+Found'">
+                `;
+                galleryGrid.appendChild(boxG);
+
+                // Memories画面（流れの通りに綺麗に並ぶ）
+                const boxM = document.createElement('div');
+                boxM.className = 'polaroid-box';
+                boxM.style.setProperty('--r', randomRotate + 'deg');
+                boxM.innerHTML = `<img src="${imgSrc}" alt="Memory" onerror="this.src='https://via.placeholder.com/150?text=Photo+Not+Found'">`;
+                memoriesGrid.appendChild(boxM);
+            });
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    userImages.push(e.target.result);
+                    localStorage.setItem('birthday_gallery_pics', JSON.stringify(userImages));
+                    allImages = [...defaultImages, ...userImages];
+                    displayImages();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function deleteImage(userIndex) {
+            userImages.splice(userIndex, 1);
+            localStorage.setItem('birthday_gallery_pics', JSON.stringify(userImages));
+            allImages = [...defaultImages, ...userImages];
+            displayImages();
+        }
+
+        displayImages();
+
+        // 2026.11.11 カウントダウン
+        let targetDate = new Date("2026-11-11T00:00:00").getTime();
+        document.getElementById('birthdayInput').value = "2026-11-11T00:00";
+
+        function changeBirthday(newVal) {
+            if(newVal) { targetDate = new Date(newVal).getTime(); updateCountdown(); }
+        }
+
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const difference = targetDate - now;
+            if (difference < 0) { document.querySelectorAll('.time-number').forEach(el => el.innerText = "00"); return; }
+            const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+            const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((difference % (1000 * 60)) / 1000);
+            document.getElementById('days').innerText = String(d).padStart(2, '0');
+            document.getElementById('hours').innerText = String(h).padStart(2, '0');
+            document.getElementById('minutes').innerText = String(m).padStart(2, '0');
+            document.getElementById('seconds').innerText = String(s).padStart(2, '0');
+        }
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+
+        // 背景：ピンクのハート（🩷）
+        const canvas = document.getElementById('effectCanvas'); const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth; let height = canvas.height = window.innerHeight;
+        window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
+        
+        const hearts = [];
+        for (let i = 0; i < 30; i++) {
+            hearts.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: Math.random() * 10 + 12,
+                opacity: Math.random() * 0.5 + 0.3,
+                speedX: Math.random() * 0.3 - 0.15,
+                speedY: Math.random() * 0.5 + 0.2
+            });
+        }
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            hearts.forEach(h => {
+                h.y -= h.speedY;
+                h.x += h.speedX;
+                if (h.y < -30) { h.y = height + 20; h.x = Math.random() * width; }
+                
+                ctx.globalAlpha = h.opacity;
+                ctx.fillStyle = '#ff85a2';
+                ctx.font = `${h.size}px 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif`;
+                ctx.fillText('🩷', h.x, h.y);
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>
